@@ -4,6 +4,68 @@
  * @param canvas to be used (if not defined a new one will be created)
  */
 
+
+const playBackgroundSlide = (context, options, imgList, duration = 0, fadeDuration = 3000, frontThreshold = 1, rearThreshold = 1) => {
+	const FPS = 60;
+	const unit = 1 / ((FPS * fadeDuration) / 1000);
+	const imgLength = imgList.length;
+	let point = 0;
+	let playerTimeId;
+
+	const playSlide = () => {
+		const currentImg = imgList[point];
+		// console.log('>>> call drawImageByFade')
+		drawImageByFade(context, [currentImg, ...options]);
+		point += 1;
+
+		if (point === imgLength) {
+			point = 0;
+		}
+	};
+
+	const drawImageByFade = (ctx, drawImgOptions) => {
+		let isDrawing = false;
+		let drawAnimationId;
+	    let opacity = 0;
+	    if (isDrawing) {
+
+	    	return;
+	    }
+	    
+	    const drawInLoop = () => {
+		    ctx.globalAlpha = opacity;
+		    // console.log('render opacity: ', ctx.globalAlpha);
+		    // ctx.clearRect(...drawImgOptions.slice(0, 4));
+		    ctx.drawImage(...drawImgOptions);
+		    if (opacity < 0.1) {
+		    	opacity += unit / frontThreshold;	
+		    } else {
+		    	opacity += unit * rearThreshold;
+		    }
+		    
+		    if (opacity >= 1) {
+		    	console.log('>>> finished ');
+		    	isDrawing = false;
+		    	window.cancelAnimationFrame(drawAnimationId);
+
+		    	// Start a new slide
+		    	clearTimeout(playerTimeId);
+				playerTimeId = window.setTimeout(playSlide, duration)
+
+		    	return;
+		    }  
+		    
+	    	isDrawing = true;
+	    	drawAnimationId = window.requestAnimationFrame(drawInLoop);
+		 }
+
+		 drawInLoop();
+	};
+
+	// Start the slide
+	playSlide();
+}
+
 function RainyDay(options, canvas) {
 
 	if (this === window) { //if *this* is the window object, start over with a *new* object
@@ -11,6 +73,7 @@ function RainyDay(options, canvas) {
 	}
 
 	this.img = options.image;
+	this.dog = options.dog;
 	var defaults = {
 		opacity: 1,
 		blur: 10,
@@ -224,6 +287,10 @@ RainyDay.prototype.rain = function(presets, speed) {
 		var context = this.canvas.getContext('2d');
 		context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 		context.drawImage(this.background, 0, 0, this.canvas.width, this.canvas.height);
+
+		if (this.dogBackground) {
+			context.drawImage(this.dogBackground, 0, 0, this.canvas.width, this.canvas.height);
+		}
 		// select matching preset
 		var preset;
 		for (var i = 0; i < presets.length; i++) {
@@ -602,7 +669,8 @@ RainyDay.prototype.prepareBackground = function() {
 	var context = this.background.getContext('2d');
 	context.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-	context.drawImage(this.img, this.options.crop[0], this.options.crop[1], this.options.crop[2], this.options.crop[3], 0, 0, this.canvas.width, this.canvas.height);
+	playBackgroundSlide(context, [this.options.crop[0], this.options.crop[1], this.options.crop[2], this.options.crop[3], 0, 0, this.canvas.width, this.canvas.height], [this.img, this.dog], 3000, 2000, 10, 5);
+	// context.drawImage(this.img, this.options.crop[0], this.options.crop[1], this.options.crop[2], this.options.crop[3], 0, 0, this.canvas.width, this.canvas.height);
 
 	context = this.clearbackground.getContext('2d');
 	context.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -611,7 +679,10 @@ RainyDay.prototype.prepareBackground = function() {
 	if (!isNaN(this.options.blur) && this.options.blur >= 1) {
 		this.stackBlurCanvasRGB(this.canvas.width, this.canvas.height, this.options.blur);
 	}
+
+
 };
+
 
 /**
  * Implements the Stack Blur Algorithm (@see http://www.quasimondo.com/StackBlurForCanvas/StackBlurDemo.html).
